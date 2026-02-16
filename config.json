@@ -1,0 +1,48 @@
+{
+  "max_parallel": "auto",
+  "max_retries": 3,
+  "project_dir": "./projects/pomodoro",
+  "log_dir": "./logs",
+  "dashboard_port": 3001,
+  "budget_limit_usd": 200,
+
+  "claude_binary": "claude",
+  "safety_max_turns": 500,
+
+  "monitor_interval_sec": 30,
+  "stall_grace_checks": 3,
+  "warn_timeout_sec": 600,
+  "warn_cost_usd": 10.0,
+  "warn_no_files_checks": 10,
+  "warn_no_activity_checks": 5,
+  "auto_continue_sec": 120,
+  "process_wait_timeout": 10,
+
+  "planner_max_turns": 30,
+  "retro_max_turns": 10,
+  "e2e_fix_retries": 2,
+
+  "enable_review": false,
+  "review_max_turns": 50,
+
+  "enable_e2e_tests": false,
+  "e2e_max_turns": 100,
+
+  "npm_timeout_sec": 120,
+  "diff_max_chars": 50000,
+  "spec_max_chars": 20000,
+  "test_output_max_chars": 30000,
+  "max_parallel_cap": 5,
+  "learnings_lookback": 3,
+  "events_lookback": 100,
+
+  "pricing": {
+    "input_per_m": 15.0,
+    "output_per_m": 75.0,
+    "cache_write_per_m": 3.75,
+    "cache_read_per_m": 1.50
+  },
+
+  "telegram_bot_token": "",
+  "telegram_chat_id": ""
+}

@@ -1,0 +1,525 @@
+{
+  "builds": [
+    {
+      "project": "todoapp",
+      "build_date": "2026-02-15",
+      "build_stats": {
+        "total_stories": 11,
+        "done": 10,
+        "failed": 0,
+        "skipped": 1,
+        "cost_usd": 3.01,
+        "elapsed_minutes": 35,
+        "max_parallel_used": 4
+      },
+      "planner_insights": [
+        {
+          "finding": "The 'Filter Tabs Component' story failed 3 times due to test failures despite correct implementation, blocking the entire downstream chain (home_page_integration, empty_state_and_loading, polish_and_responsive) for ~8 minutes until it was skipped.",
+          "recommendation": "When a UI component story is a dependency for integration stories, consider making it non-blocking by having the integration story implement a minimal inline version as fallback, or mark filter-type UI stories as optional dependencies so downstream work can proceed.",
+          "severity": "high",
+          "applies_to": "all"
+        },
+        {
+          "finding": "The 'Todo Item Component' story included setting up Jest infrastructure (jest.config.ts, jest.setup.ts, package.json test deps) alongside component implementation, causing its first attempt to fail likely due to test setup complexity.",
+          "recommendation": "Include test infrastructure setup (Jest config, test utilities, mocking setup) as part of the project initialization story rather than leaving it for the first component story that writes tests. This prevents mid-build test infrastructure issues.",
+          "severity": "high",
+          "applies_to": "all"
+        },
+        {
+          "finding": "Stories 'Todo Input Component' and 'Todo Item Component' both depended on 'base_layout_and_styling' but not on each other, enabling good parallelism. Similarly, 'API: List and Create' and 'API: Update and Delete' ran in parallel off the same dependency.",
+          "recommendation": "Continue the pattern of splitting CRUD operations into independent stories that share a data layer dependency. This enables 2x parallelism at the API layer. Similarly, split UI components to share a styling dependency without depending on each other.",
+          "severity": "low",
+          "applies_to": "all"
+        },
+        {
+          "finding": "'API: List and Create Todos' was built and merged twice (once at 12:58 and again at 13:10) \u2014 the orchestrator re-ran it after the blocked period, wasting ~3 minutes and extra cost on a story already merged into main.",
+          "recommendation": "Before re-running stories after a blocked/stalled period, the orchestrator should verify whether the story was already merged into main by checking git log or SPRINTS.json status, to avoid duplicate work.",
+          "severity": "medium",
+          "applies_to": "all"
+        },
+        {
+          "finding": "Two 'no BUILD_RESULT' completions (Base Layout, JSON File Storage Layer) \u2014 agents completed work but didn't output the required BUILD_RESULT format, making it harder to verify success programmatically.",
+          "recommendation": "Emphasize BUILD_RESULT output format more strongly in the builder prompt, or have the orchestrator treat missing BUILD_RESULT as a warning rather than relying on it. Consider adding BUILD_RESULT to CONVENTIONS.md as a required deliverable.",
+          "severity": "medium",
+          "applies_to": "all"
+        }
+      ],
+      "builder_insights": [
+        {
+          "finding": "The Filter Tabs Component was implemented correctly (51 lines, proper props, styling, exports) but failed test validation 3 times. The component works in the final app \u2014 tests were the problem, not the code.",
+          "recommendation": "For UI component stories, builders should run `npm run build` as the primary verification (catches type errors, import issues) and only use unit tests as secondary validation. If tests fail but the build passes and the component renders, flag it as test-infrastructure rather than implementation failure.",
+          "severity": "high",
+          "applies_to": "react"
+        },
+        {
+          "finding": "The Todo Item Component story had to install Jest dependencies and create jest.config.ts and jest.setup.ts, adding ~9K lines to package-lock.json. This test setup overhead contributed to its first attempt failing.",
+          "recommendation": "When test infrastructure isn't set up yet, builders should first install and configure the test framework, commit that separately, verify the test runner works with a trivial test, and only then write component tests. Don't combine infra setup with feature implementation.",
+          "severity": "medium",
+          "applies_to": "next.js"
+        },
+        {
+          "finding": "The Home Page integration story successfully handled the skipped Filter Tabs Component by implementing filter functionality inline, showing that builders can adapt when dependencies are partially available.",
+          "recommendation": "When a dependency story is marked as skipped, builders should check if the component/module exists in the codebase anyway (it may have been implemented but failed validation) and use it if available, or implement a minimal inline version.",
+          "severity": "medium",
+          "applies_to": "all"
+        },
+        {
+          "finding": "Stories that modified only 1-2 new files (TodoInput: 1 file, API Update/Delete: 1 file) completed on first attempt, while stories touching 4+ files (TodoItem: 4 files including test config) needed retries.",
+          "recommendation": "Keep story scope to 1-3 new files maximum. If a story requires creating config files, test setup files, AND implementation files, split the infrastructure setup into a separate prerequisite story.",
+          "severity": "medium",
+          "applies_to": "all"
+        }
+      ],
+      "dependency_insights": [
+        {
+          "finding": "Max parallelism of 4 agents was achieved at 12:52 (Agents 4,5,6,7 running simultaneously: TodoInput, FilterTabs, API List/Create, API Update/Delete). The dependency graph had 3 layers: foundation (1 story) \u2192 data+styling (2 parallel) \u2192 API+components (4 parallel) \u2192 integration \u2192 polish.",
+          "recommendation": "The 5-layer dependency chain (init \u2192 layout+storage \u2192 API+components \u2192 integration \u2192 empty_state \u2192 polish) forced sequential execution at the end. Consider making empty_state and polish parallel if they touch different files, and letting integration start as soon as API + at least one component is ready.",
+          "max_concurrent_achieved": 4
+        },
+        {
+          "finding": "The Filter Tabs Component failure created an 8-minute blockage (12:59 to 13:07) because home_page_integration depended on it. This single failed story held up 3 downstream stories in sequence.",
+          "recommendation": "For integration stories, use soft dependencies: list component stories as 'preferred' but allow the integration story to proceed with whatever components are available. The integration story can implement stubs for missing components. This prevents a single component failure from blocking the entire downstream chain.",
+          "max_concurrent_achieved": 0
+        },
+        {
+          "finding": "The final 3 stories (home_page_integration \u2192 empty_state_and_loading \u2192 polish_and_responsive) ran purely sequentially, each taking ~3 minutes. This 9-minute tail could not be parallelized due to strict ordering.",
+          "recommendation": "Empty state/loading and visual polish often touch different aspects of the same page. Consider combining them into a single 'page polish' story, or have empty_state only modify the page component while polish only modifies individual component files, allowing parallel execution.",
+          "max_concurrent_achieved": 1
+        }
+      ],
+      "cost_insights": [
+        {
+          "finding": "The Filter Tabs Component consumed 3 attempts (~$0.40-0.60 estimated) and produced no merged result \u2014 it was skipped. Additionally, it blocked downstream stories causing an 8-minute delay that extended total build time.",
+          "recommendation": "Implement a 'skip and continue' policy after 2 failed attempts for non-critical component stories. The orchestrator should mark the dependency as optional and let dependent stories proceed, rather than burning a 3rd attempt."
+        },
+        {
+          "finding": "'API: List and Create Todos' was built and merged twice (attempts at 12:53 and 13:07), with the second run being redundant since the story was already completed. This wasted ~3 minutes of agent time and associated cost.",
+          "recommendation": "Add a pre-flight check before starting any story: query git log for the story's merge commit. If already merged, skip re-running the story. This eliminates duplicate work after build resumption or stall recovery."
+        },
+        {
+          "finding": "Setup stories (init_nextjs_project: 3min, base_layout: 1.5min, storage_layer: 1.5min) were fast and cheap. UI component stories with tests (TodoItem: 2 attempts) cost more. Integration stories (home_page: 3min first attempt) were moderate.",
+          "recommendation": "Budget roughly: setup stories = 1x cost, API stories = 1-1.5x, UI components with tests = 1.5-2x (due to test setup overhead), integration stories = 1.5x. Include test infrastructure in setup stories to reduce UI component costs."
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "Test Infrastructure First",
+          "description": "Include Jest/Vitest configuration, test utilities, and a sample passing test in the project initialization story. This prevents every subsequent story from wrestling with test runner setup and eliminates a common retry cause.",
+          "applies_to": "all"
+        },
+        {
+          "pattern": "Soft Dependencies for Integration",
+          "description": "Integration/wiring stories should treat component dependencies as soft: proceed with available components and implement minimal inline fallbacks for missing ones. This prevents a single failed component from blocking the entire integration chain.",
+          "applies_to": "all"
+        },
+        {
+          "pattern": "Build Verification Over Test Verification",
+          "description": "Use `npm run build` (or equivalent type-check + compile) as the primary success gate for stories. Unit tests are secondary validation. A passing build with failing tests should trigger investigation, not automatic retry \u2014 the tests themselves may be wrong.",
+          "applies_to": "next.js"
+        },
+        {
+          "pattern": "CRUD API Split",
+          "description": "Split API routes into read+create and update+delete stories sharing a data layer dependency. These touch separate files (route.ts vs [id]/route.ts) and can run fully in parallel, doubling API layer throughput.",
+          "applies_to": "api"
+        },
+        {
+          "pattern": "One-File Component Stories",
+          "description": "UI component stories should target creating exactly 1 component file. If tests are needed, include them only if the test framework is already configured. Stories that create 1 file succeed on first attempt; stories creating 4+ files need retries.",
+          "applies_to": "ui"
+        },
+        {
+          "pattern": "Skip-After-Two Policy",
+          "description": "If a non-critical story fails twice, skip it rather than attempting a third time. The 3rd attempt rarely succeeds if the first two failed the same way, and the delay blocks downstream work. Let integration stories compensate for missing components.",
+          "applies_to": "all"
+        }
+      ]
+    },
+    {
+      "project": "top-10-movie-lists",
+      "build_date": "2026-02-15",
+      "build_stats": {
+        "total_stories": 1,
+        "done": 1,
+        "failed": 0,
+        "skipped": 0,
+        "cost_usd": 0.54,
+        "elapsed_minutes": 2,
+        "max_parallel_used": 1
+      },
+      "planner_insights": [
+        {
+          "finding": "Single-story plan for a simple static HTML project completed on first attempt with no retries in under 2 minutes. The planner correctly consolidated all work into one story since the deliverable was a single index.html file.",
+          "recommendation": "For single-file deliverables (static HTML, single-page scripts), use exactly 1 story. Splitting into multiple stories (e.g., 'HTML structure' + 'CSS styling' + 'content') adds merge overhead with zero parallelism benefit when everything lives in one file.",
+          "severity": "low",
+          "applies_to": "all"
+        }
+      ],
+      "builder_insights": [
+        {
+          "finding": "Builder completed the single-file static HTML page in ~60 seconds (agent_start to review_start), passed review on first attempt. No JavaScript, no external dependencies, no build tooling \u2014 zero friction points.",
+          "recommendation": "For no-JS static HTML projects, builders should inline all CSS in a <style> tag and deliver everything in one file. This eliminates all tooling issues (no npm, no bundler, no test runner) and makes review trivial.",
+          "severity": "low",
+          "applies_to": "ui"
+        }
+      ],
+      "dependency_insights": [
+        {
+          "finding": "With only 1 story, max parallelism was 1 out of 4 available slots. No dependency graph complexity. The build was purely sequential: plan \u2192 build \u2192 review \u2192 merge.",
+          "recommendation": "Single-file projects have no parallelism opportunity. The 4 available parallel agent slots were unused. This is expected and correct \u2014 do not artificially split single-file work to fill parallelism capacity.",
+          "max_concurrent_achieved": 1
+        }
+      ],
+      "cost_insights": [
+        {
+          "finding": "Total cost was $0.54 for a single static HTML page with 1 story, 0 retries. Build time was under 2 minutes. Cost breakdown: discovery (~$0.15-0.20), planning (~$0.10), building (~$0.15), review (~$0.10).",
+          "recommendation": "For trivial single-file projects, the discovery and planning phases represent a disproportionate share of cost (~55%). Consider a fast-path for simple projects that skips or abbreviates discovery when the spec is already clear and minimal."
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "Single-File Single-Story",
+          "description": "When the entire deliverable is one file (e.g., static HTML page, single script, config file), plan exactly 1 story. Multi-story plans for single-file projects add orchestration overhead (branching, merging, review cycles) with no benefit. This build proved 1 story = 1 file = first-attempt success.",
+          "applies_to": "all"
+        },
+        {
+          "pattern": "Zero-Tooling Fast Path",
+          "description": "Projects with no build tools, no package manager, no test runner (pure static HTML/CSS) complete fastest and cheapest. The absence of npm install, test failures, and build errors eliminates the most common retry causes. When possible, prefer zero-tooling architectures for simple deliverables.",
+          "applies_to": "ui"
+        }
+      ]
+    },
+    {
+      "project": "trivia-quiz-website",
+      "build_date": "2026-02-15",
+      "build_stats": {
+        "total_stories": 6,
+        "done": 6,
+        "failed": 0,
+        "skipped": 0,
+        "cost_usd": 3.7,
+        "elapsed_minutes": 14,
+        "max_parallel_used": 3
+      },
+      "planner_insights": [
+        {
+          "finding": "The 3-sprint structure (1 foundation \u2192 3 parallel core \u2192 2 sequential polish) achieved good parallelism: 3 concurrent agents in Sprint 2 with zero merge conflicts due to clear file ownership boundaries.",
+          "recommendation": "For static sites with 3-5 files, the pattern of 1 setup story \u2192 N parallel file-owner stories \u2192 1 integration \u2192 1 polish is optimal. Each parallel story should own exactly one file to prevent conflicts.",
+          "severity": "low",
+          "applies_to": "ui"
+        },
+        {
+          "finding": "The 'Trivia Questions Data Module' story was pure data creation (a JS file with an array of objects) \u2014 it needed a retry not because of complexity but because the agent failed to output BUILD_RESULT. A data-only story this simple could have been folded into project_init or integration.",
+          "recommendation": "Data-only stories (question banks, seed data, config constants) with no logic should be merged into the story that consumes the data, or into project initialization, rather than standing alone. Standalone data stories have high overhead-to-value ratio and are prone to agent output format failures.",
+          "severity": "medium",
+          "applies_to": "all"
+        },
+        {
+          "finding": "Integration story only added a single script tag to index.html. The actual integration work (verifying cross-file contracts like element IDs and global variable names) was trivially simple because CLAUDE.md already defined the shared contract.",
+          "recommendation": "When a shared contract (element IDs, global variable names, API shapes) is defined upfront in CLAUDE.md, the integration story can be merged into the polish story. Separate integration stories are only needed when the contract is implicit and needs discovery.",
+          "severity": "low",
+          "applies_to": "ui"
+        }
+      ],
+      "builder_insights": [
+        {
+          "finding": "The questions_data agent completed its work (created and committed the file) but failed to output the BUILD_RESULT block, triggering an unnecessary retry. The retry agent found the work already done and just output the required block.",
+          "recommendation": "Builder prompts should emphasize BUILD_RESULT as the final mandatory step with higher prominence. Consider placing BUILD_RESULT instructions at both the beginning and end of the builder prompt, since agents sometimes lose track of instructions given only once.",
+          "severity": "high",
+          "applies_to": "all"
+        },
+        {
+          "finding": "All 5 first-attempt stories passed review with zero issues. The CLAUDE.md file with explicit element IDs, file ownership rules, theme colors, and common pitfalls eliminated the usual ambiguity that causes review failures.",
+          "recommendation": "Invest in a detailed CLAUDE.md with explicit shared contracts (IDs, class names, global variables, theme tokens) and file ownership tables. This front-loaded specification effort pays back by eliminating review-retry cycles across all stories.",
+          "severity": "medium",
+          "applies_to": "all"
+        },
+        {
+          "finding": "The polish story was the most expensive agent ($0.60, 23 turns) because it touched all 4 files and had broad acceptance criteria (accessibility, keyboard nav, meta tags, visual polish). Despite this, it passed review on first attempt.",
+          "recommendation": "Polish/accessibility stories are inherently multi-file and high-turn. This is acceptable as long as the story runs last with no downstream dependencies. Do not try to split polish into per-file stories \u2014 the cross-cutting nature of accessibility requires seeing all files together.",
+          "severity": "low",
+          "applies_to": "ui"
+        }
+      ],
+      "dependency_insights": [
+        {
+          "finding": "Theoretical max parallelism was 3 (Sprint 2: css, questions, quiz_logic all depend only on project_init). Achieved max parallelism of 3. Sprint 3 was necessarily sequential (integration \u2192 polish). The questions_data retry delayed Sprint 3 start by ~2 minutes since integration had to wait for all Sprint 2 stories.",
+          "recommendation": "The dependency graph was already optimal for this project size. The bottleneck was the questions_data retry, not the graph structure. For 4-file static sites, the pattern of 1\u21923\u21921\u21921 stories is the right shape.",
+          "max_concurrent_achieved": 3
+        },
+        {
+          "finding": "Integration story could not start until all 3 Sprint 2 stories completed. The slowest (questions_data at 5:37 with retry) determined Sprint 3 start time, while css (3:03) and quiz_logic (3:33) finished 2+ minutes earlier. Those agents sat idle while questions_data retried.",
+          "recommendation": "For future builds, if integration depends on multiple parallel stories, consider soft-dependency mode: let integration start once 2-of-3 dependencies are done and handle the missing piece with an inline fallback. This matches the existing 'Soft Dependencies for Integration' pattern.",
+          "max_concurrent_achieved": 3
+        }
+      ],
+      "cost_insights": [
+        {
+          "finding": "The questions_data retry added ~$0.60 in extra cost (retry agent + review) for a story that was essentially 'create an array of 20 objects'. This was the single most wasteful spend in the build, caused entirely by missing BUILD_RESULT output.",
+          "recommendation": "Add BUILD_RESULT validation as a pre-check in the orchestrator: if the agent's branch has commits with changed files but no BUILD_RESULT, prompt the agent to output the status block before declaring failure. This could save $0.50+ per false-negative retry."
+        },
+        {
+          "finding": "At $3.70 for a 4-file static site (14 minutes), the per-file cost was ~$0.93. The review phase alone cost ~$1.35 (36% of total). For simple static sites with no tests and no build tools, reviews caught zero issues across all 6 stories.",
+          "recommendation": "For zero-tooling static sites where all contracts are pre-defined in CLAUDE.md, consider a lighter review mode: structural validation (files exist, BUILD_RESULT present, no syntax errors) instead of full agent-based review. This could cut 30%+ of cost for simple projects."
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "File-Owner Parallelism",
+          "description": "Assign each parallel story exclusive ownership of exactly one file. Document ownership in CLAUDE.md. This guarantees zero merge conflicts and enables maximum parallelism. Stories that need to modify multiple files (integration, polish) must run after all owners complete.",
+          "applies_to": "all"
+        },
+        {
+          "pattern": "Contract-First CLAUDE.md",
+          "description": "Define all cross-file contracts (element IDs, CSS classes, global variables, function signatures) in CLAUDE.md before any stories run. When agents share a written contract, review pass rates approach 100% on first attempt and integration stories become trivial.",
+          "applies_to": "all"
+        },
+        {
+          "pattern": "Merge Data Into Consumer",
+          "description": "Pure data stories (seed data, question banks, configuration constants) with no logic should be merged into the story that creates the consuming code, or into project initialization. Standalone data-only stories have disproportionate orchestration overhead for their complexity.",
+          "applies_to": "all"
+        },
+        {
+          "pattern": "BUILD_RESULT Reinforcement",
+          "description": "Agent output format requirements (like BUILD_RESULT) should appear in both the prompt header and footer. Agents processing simple tasks sometimes skip post-completion instructions. Duplicating the requirement at prompt boundaries reduces format-compliance failures.",
+          "applies_to": "all"
+        },
+        {
+          "pattern": "Polish Story as Catch-All",
+          "description": "A single polish/accessibility story at the end that touches all files works well for small projects (under 6 files). It naturally catches cross-file inconsistencies and adds coherent accessibility without the overhead of per-file polish stories. Budget 20-25 agent turns for it.",
+          "applies_to": "ui"
+        }
+      ]
+    },
+    {
+      "project": "linkboard",
+      "build_date": "2026-02-16",
+      "build_stats": {
+        "total_stories": 9,
+        "done": 9,
+        "failed": 0,
+        "skipped": 0,
+        "cost_usd": 9.45,
+        "elapsed_minutes": 56,
+        "max_parallel_used": 4
+      },
+      "planner_insights": [
+        {
+          "finding": "4 parallel component stories in Sprint 2 all modified package-lock.json on npm test/build, causing cascading merge conflicts. add_bookmark_form needed 3 merge-conflict retries, bookmark_card needed 2, and use_bookmarks_hook needed 1. Circuit breaker triggered at 16:10:27 after 3 conflicts in 60s.",
+          "recommendation": "When stories run npm test or npm build (which can update lockfiles), limit parallel merges to sequential merge windows or use a lockfile-exclusion strategy during merge. Alternatively, have the orchestrator regenerate lockfile once after merge rather than treating it as a mergeable file.",
+          "severity": "high",
+          "applies_to": "all"
+        },
+        {
+          "finding": "Add Bookmark Form had _retry_count: 3 \u2014 it completed successfully 3 times but kept hitting merge conflicts. The story itself was fine; the orchestrator merge strategy was the bottleneck. Each retry re-ran the entire agent ($1+ per retry), wasting ~$3 on identical work.",
+          "recommendation": "Distinguish between build failures (agent needs to retry with different approach) and merge failures (agent code is fine, just needs rebasing). On merge conflict, rebase the branch onto main rather than re-running the entire agent from scratch.",
+          "severity": "high",
+          "applies_to": "all"
+        },
+        {
+          "finding": "Sprint 3 stories (tag_filter, bookmark_list) were listed as depending on project_init but tag_filter ran in parallel with Sprint 2 retries (started at 16:07:32). This worked because tag_filter had no file overlap. However, bookmark_list depended on bookmark_card which was stuck in merge-conflict loops, creating a ~10 minute block.",
+          "recommendation": "For component stories that create their own isolated files (like TagFilter), dependencies should be minimal \u2014 only project_init. The bookmark_list -> bookmark_card dependency was real (imports BookmarkCard) but could have been avoided by having bookmark_list mock BookmarkCard in tests and only use the import, since the interface was defined in CONVENTIONS.md.",
+          "severity": "medium",
+          "applies_to": "ui"
+        },
+        {
+          "finding": "The build stalled at 16:18:44 with 'Stories blocked by unfinished dependencies' because add_bookmark_form was permanently stuck in merge-conflict limbo after circuit breaker triggered. The orchestrator required human intervention ('skip') 3 times over 20 minutes before the build was manually resumed.",
+          "recommendation": "After circuit breaker triggers, the orchestrator should automatically serialize remaining conflicting stories (run one at a time against latest main) rather than entering a blocked state requiring human input. This 20-minute stall was entirely avoidable.",
+          "severity": "high",
+          "applies_to": "all"
+        },
+        {
+          "finding": "home_page_integration's DISCOVERIES note says 'AddBookmarkForm component was missing from src/components/ \u2014 implemented inline fallback in page.tsx'. Despite add_bookmark_form being marked 'done' in SPRINTS.json, the home_page_integration agent couldn't find the component, suggesting the final successful merge of add_bookmark_form may not have included the component file, or the worktree state was stale.",
+          "recommendation": "After merge-conflict retries, verify that all files_created in the story spec actually exist on the main branch before marking the story as done. Add a post-merge file existence check to the orchestrator.",
+          "severity": "high",
+          "applies_to": "all"
+        }
+      ],
+      "builder_insights": [
+        {
+          "finding": "bookmark_card failed on first attempt (retried at 16:07:24 after ~2 minutes). The story description was detailed and clear, and the component only creates 2 files. The failure was likely a test environment issue since the second attempt succeeded.",
+          "recommendation": "For stories that fail quickly (under 3 minutes) on first attempt with detailed specs, the most likely cause is a transient environment issue (npm cache, jest config not found). A simple 30s backoff retry is appropriate and worked here.",
+          "severity": "low",
+          "applies_to": "all"
+        },
+        {
+          "finding": "use_bookmarks_hook took the longest to complete among Sprint 2 stories (~5 minutes per attempt). It had the most complex spec: 8 distinct behaviors, computed properties, filtering logic, and comprehensive test suite with renderHook. The description was 300+ words.",
+          "recommendation": "Hook stories with complex business logic and computed state should be budgeted at 5-7 minutes per attempt. They are inherently more complex than presentational component stories (2-3 minutes). Consider whether computed properties like filteredBookmarks and allTags should be separate utility functions with their own tests, then consumed by the hook.",
+          "severity": "low",
+          "applies_to": "react"
+        },
+        {
+          "finding": "DISCOVERIES.md shows jest.mock('@/lib/storage') doesn't work from co-located test files \u2014 agents had to discover the workaround of using relative paths like jest.mock('./storage'). Multiple agents independently discovered this same issue.",
+          "recommendation": "Add a known gotcha to CLAUDE.md or CONVENTIONS.md: 'In jest.mock() calls, always use relative paths (./storage, ../components/X) instead of @/ aliases \u2014 the path alias does not resolve inside jest.mock().' This would prevent every agent from independently debugging the same issue.",
+          "severity": "medium",
+          "applies_to": "next.js"
+        },
+        {
+          "finding": "tag_filter completed with 'no BUILD_RESULT' flag, meaning the agent didn't output the required BUILD_RESULT format despite the story succeeding. This matches the existing BUILD_RESULT Reinforcement pattern \u2014 simple/fast stories skip the output format.",
+          "recommendation": "For stories that complete in under 60 seconds, the agent often skips post-completion formatting. The BUILD_RESULT requirement should be part of the initial system prompt, not just the builder prompt footer.",
+          "severity": "low",
+          "applies_to": "all"
+        }
+      ],
+      "dependency_insights": [
+        {
+          "finding": "Theoretical max parallelism was 4 agents in Sprint 2, and 4 was achieved. However, effective parallelism was much lower because 3 of 4 stories needed merge-conflict retries that ran sequentially. The actual parallel useful work was: 4 agents for ~2min \u2192 1-2 agents for ~10min as stories cycled through merge-conflict retries.",
+          "recommendation": "Parallel agent count should account for merge serialization. With N parallel stories, expect N-1 potential merge conflicts if they all modify shared files (lockfile). Either serialize merges (merge one at a time with lockfile regeneration) or exclude auto-generated files from merge conflict detection.",
+          "max_concurrent_achieved": 4
+        },
+        {
+          "finding": "Sprint 3 had a strict sequential chain: bookmark_card (stuck in retries) \u2192 bookmark_list \u2192 home_page_integration \u2192 e2e_verification. This 4-story chain took from 16:14 to 16:57 (43 minutes), which was the actual critical path since Sprint 2 conflicts burned 16:05 to 16:14 (~9 minutes of waste).",
+          "recommendation": "The dependency chain bookmark_card \u2192 bookmark_list could have been broken by having bookmark_list mock BookmarkCard in its tests and only rely on the interface contract (props: bookmark + onDelete). This would have allowed bookmark_list to run in parallel with bookmark_card after project_init, potentially saving 5+ minutes.",
+          "max_concurrent_achieved": 1
+        },
+        {
+          "finding": "home_page_integration depended on all 5 component/hook stories, creating a mandatory sync point. After the merge-conflict chaos, this story couldn't start until every predecessor was merged. The 20-minute human-intervention delay (16:18 to 16:48) was directly caused by this bottleneck.",
+          "recommendation": "Integration stories should be designed to gracefully handle missing components (the story spec already says 'implement minimal inline fallback'). The orchestrator should allow integration stories to proceed when \u226580% of dependencies are met, rather than requiring 100%. This build proved fallbacks work \u2014 home_page_integration succeeded despite AddBookmarkForm being unavailable.",
+          "max_concurrent_achieved": 1
+        }
+      ],
+      "cost_insights": [
+        {
+          "finding": "Total cost was $9.45 for 9 stories, but at least 6 agent runs were wasted on merge-conflict retries (add_bookmark_form x3, bookmark_card x2, use_bookmarks_hook x1). At ~$1 per agent run, roughly $6 was wasted \u2014 63% of total cost was merge-conflict rework.",
+          "recommendation": "Implementing rebase-on-conflict instead of full-agent-retry would have saved ~$6 and ~15 minutes. This is the single highest-impact optimization for this build."
+        },
+        {
+          "finding": "The setup story (project_init) completed in ~3.5 minutes. Each component story took 2-5 minutes. The integration story took ~3.5 minutes. The e2e_verification story took ~5.5 minutes. Story costs were roughly proportional to time, with the hook story being most expensive per-story due to complexity.",
+          "recommendation": "Component stories that create 2 files (source + test) are the sweet spot for cost efficiency at ~$1 each. The project_init story creating 13 files was also cost-effective since it's a one-time sequential requirement. Budget $1-1.50 per component story, $1.50-2 for hooks with complex logic."
+        },
+        {
+          "finding": "The 20-minute stall waiting for human input (3 x 10-minute waits for 'skip' responses) added no cost in API usage but extended wall-clock time by 35%. The build took 56 minutes but only ~36 minutes of that was productive agent work.",
+          "recommendation": "Automated circuit-breaker recovery (serialize remaining stories) would eliminate human-in-the-loop delays. Target wall-clock time for this build should have been ~35 minutes."
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "Lockfile Merge Exclusion",
+          "description": "Exclude auto-generated files (package-lock.json, yarn.lock, pnpm-lock.yaml) from merge conflict detection. After each merge, regenerate the lockfile with a single `npm install` on the main branch. These files cause the majority of merge conflicts in parallel JS/TS builds because every agent that runs tests or builds will modify the lockfile.",
+          "applies_to": "next.js"
+        },
+        {
+          "pattern": "Rebase Not Rebuild",
+          "description": "When a story's code is correct but merge fails due to conflicts in non-story files (lockfile, config), rebase the branch onto main rather than re-running the entire agent. A rebase costs seconds; a full agent retry costs $1+ and 3-5 minutes. Only trigger full rebuild when the merge conflict involves files the story actually owns.",
+          "applies_to": "all"
+        },
+        {
+          "pattern": "Jest Mock Path Alias Gotcha",
+          "description": "In Next.js projects using @/ path aliases with Jest, jest.mock() calls must use relative paths (e.g., jest.mock('./storage')) not alias paths (e.g., jest.mock('@/lib/storage')). The path alias resolves for imports but not inside jest.mock() string arguments. Document this in CONVENTIONS.md to prevent every agent from independently debugging it.",
+          "applies_to": "next.js"
+        },
+        {
+          "pattern": "Interface-Only Dependencies",
+          "description": "Component stories that import other components should depend only on the interface contract (prop types), not on the actual component implementation being merged. If BookmarkList imports BookmarkCard, it can mock BookmarkCard in tests and only needs the Bookmark type from project_init. This breaks artificial dependency chains and enables more parallelism.",
+          "applies_to": "react"
+        },
+        {
+          "pattern": "Circuit Breaker Auto-Recovery",
+          "description": "When a merge circuit breaker triggers (N conflicts in M seconds), automatically switch from parallel to sequential merge mode rather than entering a blocked state requiring human intervention. Serialize remaining stories: merge one, regenerate lockfile, repeat. This eliminates the most expensive wall-clock bottleneck observed (20+ minutes waiting for human input).",
+          "applies_to": "all"
+        },
+        {
+          "pattern": "Post-Merge File Verification",
+          "description": "After marking a story as 'done' following a merge, verify that all files listed in files_created actually exist on the main branch. In this build, add_bookmark_form was marked done but the component file was missing when home_page_integration ran, forcing an inline fallback. A simple file-existence check prevents downstream stories from building against incomplete state.",
+          "applies_to": "all"
+        }
+      ]
+    }
+  ],
+  "global_patterns": [
+    {
+      "pattern": "Test Infrastructure First",
+      "description": "Include Jest/Vitest configuration, test utilities, and a sample passing test in the project initialization story. This prevents every subsequent story from wrestling with test runner setup and eliminates a common retry cause.",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "Soft Dependencies for Integration",
+      "description": "Integration/wiring stories should treat component dependencies as soft: proceed with available components and implement minimal inline fallbacks for missing ones. This prevents a single failed component from blocking the entire integration chain.",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "Build Verification Over Test Verification",
+      "description": "Use `npm run build` (or equivalent type-check + compile) as the primary success gate for stories. Unit tests are secondary validation. A passing build with failing tests should trigger investigation, not automatic retry \u2014 the tests themselves may be wrong.",
+      "applies_to": "next.js"
+    },
+    {
+      "pattern": "CRUD API Split",
+      "description": "Split API routes into read+create and update+delete stories sharing a data layer dependency. These touch separate files (route.ts vs [id]/route.ts) and can run fully in parallel, doubling API layer throughput.",
+      "applies_to": "api"
+    },
+    {
+      "pattern": "One-File Component Stories",
+      "description": "UI component stories should target creating exactly 1 component file. If tests are needed, include them only if the test framework is already configured. Stories that create 1 file succeed on first attempt; stories creating 4+ files need retries.",
+      "applies_to": "ui"
+    },
+    {
+      "pattern": "Skip-After-Two Policy",
+      "description": "If a non-critical story fails twice, skip it rather than attempting a third time. The 3rd attempt rarely succeeds if the first two failed the same way, and the delay blocks downstream work. Let integration stories compensate for missing components.",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "Single-File Single-Story",
+      "description": "When the entire deliverable is one file (e.g., static HTML page, single script, config file), plan exactly 1 story. Multi-story plans for single-file projects add orchestration overhead (branching, merging, review cycles) with no benefit. This build proved 1 story = 1 file = first-attempt success.",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "Zero-Tooling Fast Path",
+      "description": "Projects with no build tools, no package manager, no test runner (pure static HTML/CSS) complete fastest and cheapest. The absence of npm install, test failures, and build errors eliminates the most common retry causes. When possible, prefer zero-tooling architectures for simple deliverables.",
+      "applies_to": "ui"
+    },
+    {
+      "pattern": "File-Owner Parallelism",
+      "description": "Assign each parallel story exclusive ownership of exactly one file. Document ownership in CLAUDE.md. This guarantees zero merge conflicts and enables maximum parallelism. Stories that need to modify multiple files (integration, polish) must run after all owners complete.",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "Contract-First CLAUDE.md",
+      "description": "Define all cross-file contracts (element IDs, CSS classes, global variables, function signatures) in CLAUDE.md before any stories run. When agents share a written contract, review pass rates approach 100% on first attempt and integration stories become trivial.",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "Merge Data Into Consumer",
+      "description": "Pure data stories (seed data, question banks, configuration constants) with no logic should be merged into the story that creates the consuming code, or into project initialization. Standalone data-only stories have disproportionate orchestration overhead for their complexity.",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "BUILD_RESULT Reinforcement",
+      "description": "Agent output format requirements (like BUILD_RESULT) should appear in both the prompt header and footer. Agents processing simple tasks sometimes skip post-completion instructions. Duplicating the requirement at prompt boundaries reduces format-compliance failures.",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "Polish Story as Catch-All",
+      "description": "A single polish/accessibility story at the end that touches all files works well for small projects (under 6 files). It naturally catches cross-file inconsistencies and adds coherent accessibility without the overhead of per-file polish stories. Budget 20-25 agent turns for it.",
+      "applies_to": "ui"
+    },
+    {
+      "pattern": "Lockfile Merge Exclusion",
+      "description": "Exclude auto-generated files (package-lock.json, yarn.lock, pnpm-lock.yaml) from merge conflict detection. After each merge, regenerate the lockfile with a single `npm install` on the main branch. These files cause the majority of merge conflicts in parallel JS/TS builds because every agent that runs tests or builds will modify the lockfile.",
+      "applies_to": "next.js"
+    },
+    {
+      "pattern": "Rebase Not Rebuild",
+      "description": "When a story's code is correct but merge fails due to conflicts in non-story files (lockfile, config), rebase the branch onto main rather than re-running the entire agent. A rebase costs seconds; a full agent retry costs $1+ and 3-5 minutes. Only trigger full rebuild when the merge conflict involves files the story actually owns.",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "Jest Mock Path Alias Gotcha",
+      "description": "In Next.js projects using @/ path aliases with Jest, jest.mock() calls must use relative paths (e.g., jest.mock('./storage')) not alias paths (e.g., jest.mock('@/lib/storage')). The path alias resolves for imports but not inside jest.mock() string arguments. Document this in CONVENTIONS.md to prevent every agent from independently debugging it.",
+      "applies_to": "next.js"
+    },
+    {
+      "pattern": "Interface-Only Dependencies",
+      "description": "Component stories that import other components should depend only on the interface contract (prop types), not on the actual component implementation being merged. If BookmarkList imports BookmarkCard, it can mock BookmarkCard in tests and only needs the Bookmark type from project_init. This breaks artificial dependency chains and enables more parallelism.",
+      "applies_to": "react"
+    },
+    {
+      "pattern": "Circuit Breaker Auto-Recovery",
+      "description": "When a merge circuit breaker triggers (N conflicts in M seconds), automatically switch from parallel to sequential merge mode rather than entering a blocked state requiring human intervention. Serialize remaining stories: merge one, regenerate lockfile, repeat. This eliminates the most expensive wall-clock bottleneck observed (20+ minutes waiting for human input).",
+      "applies_to": "all"
+    },
+    {
+      "pattern": "Post-Merge File Verification",
+      "description": "After marking a story as 'done' following a merge, verify that all files listed in files_created actually exist on the main branch. In this build, add_bookmark_form was marked done but the component file was missing when home_page_integration ran, forcing an inline fallback. A simple file-existence check prevents downstream stories from building against incomplete state.",
+      "applies_to": "all"
+    }
+  ]
+}
